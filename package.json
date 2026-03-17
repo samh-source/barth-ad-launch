@@ -1,0 +1,22 @@
+{
+  "name": "ad-management-system",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Meta and TikTok ad management agents with shared core",
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:core": "npm run build -w core",
+    "meta": "npm run start -w agents-meta",
+    "tiktok": "npm run start -w agents-tiktok",
+    "barth": "npm run start -w barth"
+  },
+  "workspaces": [
+    "core",
+    "agents/meta",
+    "agents/tiktok",
+    "barth"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

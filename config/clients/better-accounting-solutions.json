@@ -1,0 +1,11 @@
+{
+  "clientName": "Better Accounting Solutions",
+  "notificationEmail": "samh@betteraccountingsolutions.com",
+  "metaAccountId": "act_1176795154515806",
+  "metaAccessToken": "EAAM7xdqMm1kBQZBq7CO9TAY0821LfIuiJbjGpkfAtsq0dDtjEXymr01ZCpzGRg2fH1Bet7WYGeh02EWrAbfLUc2xZCbUWokCYREN8RdRhWY98y5vFzs0yW0vSo48s1sziitpoj3fcibBpbctNjg8bg3c5Lq6MmkZCzzLRbSn5QoTVIoMsTEvCnme6yg0pULaeUOJmYdMoBFuz2rYx745ChrwB7hpxqmZCfNBdfB3ZCiT7GR2OuXHkOctvRQRoYd4bKKx9AHbsXwZBexfZBVVdtAj",
+  "thresholds": {
+    "minROAS": 2,
+    "maxCPA": 50,
+    "minSpendToEvaluate": 100
+  }
+}

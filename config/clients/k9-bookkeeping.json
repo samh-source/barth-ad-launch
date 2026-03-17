@@ -1,0 +1,11 @@
+{
+  "clientName": "K9 Bookkeeping",
+  "notificationEmail": "samh@betteraccountingsolutions.com",
+  "metaAccountId": "act_2353282635071784",
+  "metaAccessToken": "EAAM7xdqMm1kBQ5NabDdUtPNjGrZCEDAcMmMEaQnjji77QR3wheZBJVqlJmTGpvMjz9Wr0DBXbY1GaEc9oc4SZAdtmDnSZC7fDsZAiUJnhogoIItZCVl28oYarb5hgFlMVVSibZClYgxDhvcVzo0pmYjaqhn62ygYQCHJTeSynXafewsvNjvkT8eb7j0IvTHh0LDDMZBSzoryPZC9xcdollfB5f8cJtqZAsnwI7hrFMPXfJX09xRZBcA2ZAv1ZBwgmPweJPSovOZAhB8majcRtpeHySdHLn",
+  "thresholds": {
+    "minROAS": 2,
+    "maxCPA": 50,
+    "minSpendToEvaluate": 100
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "clientName": "Example Client",
+  "notificationEmail": "ads@example.com",
+  "thresholds": {
+    "minROAS": 2,
+    "maxCPA": 50,
+    "minSpendToEvaluate": 100
+  }
+}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barth — Ad Launch</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <h1>Barth</h1>
+    <p class="tagline">Ad launch for Meta &amp; TikTok</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Video</h2>
+      <div id="drop-zone" class="drop-zone">
+        <input type="file" id="file-input" accept="video/*" hidden>
+        <p class="drop-zone-prompt">Drop a video here or click to choose</p>
+        <p id="file-name" class="file-name"></p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Select clients</h2>
+      <div id="client-list" class="client-list">
+        <p class="loading">Loading clients…</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Brief <span class="optional">(optional)</span></h2>
+      <textarea id="brief" class="brief" rows="3" placeholder="e.g. Promote the spring sale, focus on free shipping"></textarea>
+    </section>
+
+    <section class="actions">
+      <button type="button" id="launch-btn" class="launch-btn" disabled>Launch</button>
+    </section>
+
+    <section class="card log-card">
+      <h2>Status</h2>
+      <div id="status-log" class="status-log"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
