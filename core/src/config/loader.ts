@@ -1,6 +1,12 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { ClientConfig, ClientWithMeta, ClientWithTikTok } from "./types.js";
+import type {
+  ClientConfig,
+  ClientWithMeta,
+  ClientWithTikTok,
+  MetaTargeting,
+  TikTokLaunchMode,
+} from "./types.js";
 import { isClientWithMeta, isClientWithTikTok } from "./types.js";
 
 export interface LoaderOptions {
@@ -51,12 +57,67 @@ export function parseClientConfig(raw: string): ClientConfig {
   const metaTokenExpiresAt =
     obj.metaTokenExpiresAt == null ? undefined : String(obj.metaTokenExpiresAt);
   const metaPageId = obj.metaPageId == null ? undefined : String(obj.metaPageId).trim();
+  const metaWebsiteUrl = obj.metaWebsiteUrl == null ? undefined : String(obj.metaWebsiteUrl).trim();
+  let metaTargeting: MetaTargeting | undefined;
+  if (obj.metaTargeting != null && typeof obj.metaTargeting === "object") {
+    const t = obj.metaTargeting as Record<string, unknown>;
+    metaTargeting = { geo_locations: {} };
+    if (t.geo_locations != null && typeof t.geo_locations === "object") {
+      const gl = t.geo_locations as Record<string, unknown>;
+      if (Array.isArray(gl.countries)) {
+        metaTargeting.geo_locations!.countries = gl.countries
+          .filter((c): c is string => typeof c === "string")
+          .map((c) => String(c).trim())
+          .filter(Boolean);
+      }
+      if (Array.isArray(gl.custom_locations)) {
+        metaTargeting.geo_locations!.custom_locations = gl.custom_locations
+          .filter((loc): loc is Record<string, unknown> => loc != null && typeof loc === "object")
+          .map((loc) => {
+            const lat = Number(loc.latitude);
+            const lng = Number(loc.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+            const radius = loc.radius != null ? Number(loc.radius) : 10;
+            const distance_unit: "mile" | "kilometer" =
+              loc.distance_unit === "kilometer" ? "kilometer" : "mile";
+            return {
+              latitude: lat,
+              longitude: lng,
+              radius: Number.isFinite(radius) && radius > 0 ? radius : 10,
+              distance_unit,
+            };
+          })
+          .filter((loc): loc is NonNullable<typeof loc> => loc !== null);
+        if (metaTargeting.geo_locations!.custom_locations!.length === 0) {
+          delete metaTargeting.geo_locations!.custom_locations;
+        }
+      }
+    }
+    if (
+      !metaTargeting.geo_locations?.countries?.length &&
+      !metaTargeting.geo_locations?.custom_locations?.length
+    ) {
+      metaTargeting = undefined;
+    }
+  }
   const tiktokRefreshToken =
     obj.tiktokRefreshToken == null ? undefined : String(obj.tiktokRefreshToken);
   const tiktokRefreshTokenExpiresAt =
     obj.tiktokRefreshTokenExpiresAt == null
       ? undefined
       : String(obj.tiktokRefreshTokenExpiresAt);
+  const tiktokLaunchMode =
+    obj.tiktokLaunchMode === "website_traffic" || obj.tiktokLaunchMode === "awareness"
+      ? (obj.tiktokLaunchMode as TikTokLaunchMode)
+      : undefined;
+  const tiktokLocationIds = Array.isArray(obj.tiktokLocationIds)
+    ? obj.tiktokLocationIds
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : undefined;
+  const tiktokWebsiteUrl =
+    obj.tiktokWebsiteUrl == null ? undefined : String(obj.tiktokWebsiteUrl).trim();
 
   let thresholds: ClientConfig["thresholds"];
   if (obj.thresholds != null && typeof obj.thresholds === "object") {
@@ -76,11 +137,16 @@ export function parseClientConfig(raw: string): ClientConfig {
   if (metaAccountId) config.metaAccountId = metaAccountId;
   if (metaAccessToken) config.metaAccessToken = metaAccessToken;
   if (metaPageId) config.metaPageId = metaPageId;
+  if (metaWebsiteUrl) config.metaWebsiteUrl = metaWebsiteUrl;
+  if (metaTargeting) config.metaTargeting = metaTargeting;
   if (metaTokenExpiresAt) config.metaTokenExpiresAt = metaTokenExpiresAt;
   if (tiktokAdvertiserId) config.tiktokAdvertiserId = tiktokAdvertiserId;
   if (tiktokAccessToken) config.tiktokAccessToken = tiktokAccessToken;
   if (tiktokRefreshToken) config.tiktokRefreshToken = tiktokRefreshToken;
   if (tiktokRefreshTokenExpiresAt) config.tiktokRefreshTokenExpiresAt = tiktokRefreshTokenExpiresAt;
+  if (tiktokLaunchMode) config.tiktokLaunchMode = tiktokLaunchMode;
+  if (tiktokLocationIds?.length) config.tiktokLocationIds = tiktokLocationIds;
+  if (tiktokWebsiteUrl) config.tiktokWebsiteUrl = tiktokWebsiteUrl;
   return config;
 }
 
@@ -112,7 +178,10 @@ export async function loadAllClients(
       const config = parseClientConfig(raw);
       clients.push(config);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      let message = err instanceof Error ? err.message : String(err);
+      if (/Unexpected token|is not valid JSON/i.test(message)) {
+        message = "Invalid JSON (file may be corrupted or not a JSON object)";
+      }
       errors.push({ file: path, error: message });
     }
   }

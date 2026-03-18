@@ -5,3 +5,4 @@ dist/
 logs/
 reports/
 .DS_Store
+.vercel

@@ -10,6 +10,7 @@ export type {
   ClientWithMeta,
   ClientWithTikTok,
   ClientThresholds,
+  TikTokLaunchMode,
 } from "./types.js";
 export { isClientWithMeta, isClientWithTikTok } from "./types.js";
 export { clientConfigSchema } from "./schema.js";

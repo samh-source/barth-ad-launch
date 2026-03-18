@@ -106,6 +106,7 @@ META_APP_SECRET=your_app_secret_here
 | **Advertiser ID** | `config/clients/<client>.json` as `tiktokAdvertiserId` | Which ad account the agent manages |
 | **Access token** | `config/clients/<client>.json` as `tiktokAccessToken` | API calls (refreshed automatically) |
 | **Refresh token** | `config/clients/<client>.json` as `tiktokRefreshToken` | Getting new access tokens without re-login |
+| **Location IDs** | `config/clients/<client>.json` as `tiktokLocationIds` | TikTok-supported geographic targeting for Barth launches |
 
 ---
 
@@ -174,6 +175,7 @@ TIKTOK_CLIENT_SECRET=your_client_secret_here
   "notificationEmail": "ads@acme.com",
   "tiktokAdvertiserId": "7123456789012345678",
   "tiktokAccessToken": "act.xxxx...",
+  "tiktokLocationIds": ["501"],
   "tiktokRefreshToken": "rft.xxxx...",
   "thresholds": {
     "minROAS": 2,
@@ -184,7 +186,9 @@ TIKTOK_CLIENT_SECRET=your_client_secret_here
 ```
 
 - Use the **same** `TIKTOK_CLIENT_KEY` and `TIKTOK_CLIENT_SECRET` for all clients.
-- Each client that uses TikTok has its own `tiktokAdvertiserId`, `tiktokAccessToken`, and `tiktokRefreshToken`. The agent will refresh the access token automatically using the refresh token.
+- Each client that uses TikTok has its own `tiktokAdvertiserId`, `tiktokAccessToken`, and `tiktokRefreshToken`.
+- For Barth launches, each TikTok client also needs `tiktokLocationIds`.
+- TikTok geographic targeting uses platform `location_ids`, not Meta-style latitude/longitude radius input.
 
 ---
 
@@ -201,6 +205,20 @@ TIKTOK_CLIENT_SECRET=your_client_secret_here
 | `TIKTOK_AGENT_CRON` | TikTok agent | Optional; default `0 */6 * * *` |
 | `REPORTS_DIR` | Report files | Optional; default `reports` |
 
+## Part 4: Render deploy env checklist
+
+For the deployed `Barth` app on `Render`, set:
+
+- `ANTHROPIC_API_KEY`
+- `TIKTOK_CLIENT_KEY`
+- `TIKTOK_CLIENT_SECRET`
+- `META_APP_ID`
+- `META_APP_SECRET`
+
+Production `Barth` reads the checked-in `config/clients/*.json` files at runtime, so the branch you deploy must contain the current real client configs.
+
+## Part 5: Per-client checklist
+
 **In each `config/clients/<client>.json`:**
 
 - **clientName** — Required. Display name in logs and reports.
@@ -211,7 +229,7 @@ A client can have **only Meta**, **only TikTok**, or **both**. Omit the Meta or 
 
 ---
 
-## Part 4: Quick checklist
+## Part 6: Quick checklist
 
 **Meta (per environment):**
 
@@ -223,6 +241,8 @@ A client can have **only Meta**, **only TikTok**, or **both**. Omit the Meta or 
 - [ ] TikTok app created; **Client Key** and **Client Secret** in `.env` as `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`
 - [ ] Redirect URI set in the TikTok app (for OAuth)
 - [ ] For each TikTok client: **advertiser ID**, **access token**, and **refresh token** from one OAuth flow in `config/clients/<client>.json` as `tiktokAdvertiserId`, `tiktokAccessToken`, `tiktokRefreshToken`
+- [ ] For each TikTok client used by Barth: `tiktokLocationIds`
+- [ ] For each TikTok website-traffic client used by Barth: `tiktokWebsiteUrl`
 
 **Shared:**
 
@@ -230,3 +250,5 @@ A client can have **only Meta**, **only TikTok**, or **both**. Omit the Meta or 
 - [ ] Optional: SMTP and `ADMIN_EMAIL` for alerts; cron and `REPORTS_DIR` if you want to override defaults
 
 Never commit `.env` or real tokens to version control. Use `.gitignore` (the repo already ignores `.env`) and restrict permissions on `config/clients/` in production.
+
+Do not use `Vercel` for production Barth video launches; use `Render` for the hosted upload flow.

@@ -54,6 +54,20 @@ main {
   color: #888;
 }
 
+.platform-list {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.platform-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
 .drop-zone {
   border: 2px dashed #ccc;
   border-radius: 8px;
@@ -96,15 +110,34 @@ main {
 
 .client-list label {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   cursor: pointer;
   font-size: 0.95rem;
 }
 
+.client-option input:disabled + .client-text {
+  opacity: 0.65;
+}
+
 .client-list input[type="checkbox"] {
   width: 1.1rem;
   height: 1.1rem;
+}
+
+.client-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.client-name {
+  font-weight: 500;
+}
+
+.client-note {
+  font-size: 0.8rem;
+  color: #666;
 }
 
 .brief {

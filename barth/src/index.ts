@@ -12,7 +12,8 @@ loadEnv({ path: join(PROJECT_ROOT, ".env") });
 
 import { createServer } from "./server.js";
 
-const PORT = Number(process.env.BARTH_PORT) || 3000;
+/** Render/Railway set PORT; BARTH_PORT overrides for local preference */
+const PORT = Number(process.env.PORT || process.env.BARTH_PORT) || 3000;
 const app = createServer(PROJECT_ROOT);
 
 app.listen(PORT, () => {

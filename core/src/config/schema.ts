@@ -16,6 +16,9 @@ export const clientConfigSchema = {
     tiktokAccessToken: { type: "string" },
     tiktokRefreshToken: { type: "string" },
     tiktokRefreshTokenExpiresAt: { type: "string", format: "date-time" },
+    tiktokLaunchMode: { enum: ["website_traffic", "awareness"] },
+    tiktokLocationIds: { type: "array", items: { type: "string" }, minItems: 1 },
+    tiktokWebsiteUrl: { type: "string", format: "uri" },
     thresholds: {
       type: "object",
       properties: {

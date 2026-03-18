@@ -2,10 +2,31 @@
   "clientName": "AIMyAdvance",
   "notificationEmail": "samh@betteraccountingsolutions.com",
   "metaAccountId": "act_1409750480532322",
+  "metaPageId": "951105971420303",
   "metaAccessToken": "EAAM7xdqMm1kBQZBq7CO9TAY0821LfIuiJbjGpkfAtsq0dDtjEXymr01ZCpzGRg2fH1Bet7WYGeh02EWrAbfLUc2xZCbUWokCYREN8RdRhWY98y5vFzs0yW0vSo48s1sziitpoj3fcibBpbctNjg8bg3c5Lq6MmkZCzzLRbSn5QoTVIoMsTEvCnme6yg0pULaeUOJmYdMoBFuz2rYx745ChrwB7hpxqmZCfNBdfB3ZCiT7GR2OuXHkOctvRQRoYd4bKKx9AHbsXwZBexfZBVVdtAj",
+  "metaTargeting": {
+    "geo_locations": {
+      "countries": [
+        "US"
+      ],
+      "custom_locations": [
+        {
+          "latitude": 40.7067,
+          "longitude": -74.0098,
+          "radius": 10,
+          "distance_unit": "mile"
+        }
+      ]
+    }
+  },
   "thresholds": {
     "minROAS": 2,
     "maxCPA": 50,
     "minSpendToEvaluate": 100
-  }
+  },
+  "tiktokAccessToken": "a5f39cf4f48f21d46a8cc221483cafa5436f89ab",
+  "tiktokAdvertiserId": "7594954164534525969",
+  "tiktokLaunchMode": "website_traffic",
+  "tiktokLocationIds": ["501"],
+  "tiktokWebsiteUrl": "https://aimyadvance.com/contact.html"
 }

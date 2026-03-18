@@ -1,4 +1,6 @@
 (function () {
+  const platformMetaEl = document.getElementById("platform-meta");
+  const platformTikTokEl = document.getElementById("platform-tiktok");
   const dropZone = document.getElementById("drop-zone");
   const fileInput = document.getElementById("file-input");
   const fileNameEl = document.getElementById("file-name");
@@ -8,6 +10,7 @@
   const statusLog = document.getElementById("status-log");
 
   let selectedFile = null;
+  let allClients = [];
 
   function log(message, isError) {
     const line = document.createElement("div");
@@ -24,39 +27,111 @@
     }
   }
 
+  function getSelectedPlatforms() {
+    const platforms = [];
+    if (platformMetaEl && platformMetaEl.checked) platforms.push("meta");
+    if (platformTikTokEl && platformTikTokEl.checked) platforms.push("tiktok");
+    return platforms;
+  }
+
+  function isClientReadyForPlatforms(client, platforms) {
+    if (!platforms.length) return false;
+    return platforms.every(function (platform) {
+      return platform === "meta" ? !!client.metaReady : !!client.tiktokReady;
+    });
+  }
+
+  function getClientNote(client, platforms) {
+    const readyNotes = [];
+    if (client.metaReady) readyNotes.push("Meta ready");
+    if (client.tiktokReady) readyNotes.push("TikTok ready");
+
+    if (isClientReadyForPlatforms(client, platforms)) {
+      return readyNotes.join(" • ");
+    }
+
+    const missing = [];
+    if (platforms.indexOf("meta") !== -1 && !client.metaReady) {
+      missing.push(client.metaIssue || "Meta setup incomplete");
+    }
+    if (platforms.indexOf("tiktok") !== -1 && !client.tiktokReady) {
+      missing.push(client.tiktokIssue || "TikTok setup incomplete");
+    }
+    return missing.join(" • ") || readyNotes.join(" • ");
+  }
+
   function renderClients(clients) {
     clientListEl.innerHTML = "";
-    if (!clients.length) {
-      clientListEl.innerHTML = "<p class=\"loading\">No Meta clients in config.</p>";
+    const platforms = getSelectedPlatforms();
+
+    if (!platforms.length) {
+      clientListEl.innerHTML = "<p class=\"loading\">Select at least one platform.</p>";
       return;
     }
+    if (!clients.length) {
+      clientListEl.innerHTML = "<p class=\"loading\">No clients in config.</p>";
+      return;
+    }
+
+    const readyCount = clients.filter(function (client) {
+      return isClientReadyForPlatforms(client, platforms);
+    }).length;
+    if (!readyCount) {
+      clientListEl.innerHTML = "<p class=\"loading\">No clients are ready for the selected platform(s).</p>";
+      return;
+    }
+
     clients.forEach(function (c) {
       const label = document.createElement("label");
+      label.className = "client-option";
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.name = "client";
       checkbox.value = c.id;
+      checkbox.disabled = !isClientReadyForPlatforms(c, platforms);
+
+      const textWrap = document.createElement("span");
+      textWrap.className = "client-text";
+
+      const name = document.createElement("span");
+      name.className = "client-name";
+      name.textContent = c.clientName;
+
+      const note = document.createElement("span");
+      note.className = "client-note";
+      note.textContent = getClientNote(c, platforms);
+
+      textWrap.appendChild(name);
+      textWrap.appendChild(note);
       label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(c.clientName));
+      label.appendChild(textWrap);
       clientListEl.appendChild(label);
     });
   }
 
   function updateLaunchButton() {
     const hasFile = !!selectedFile;
-    const hasClient = clientListEl.querySelector('input[name="client"]:checked');
-    launchBtn.disabled = !hasFile || !hasClient;
+    const hasPlatform = getSelectedPlatforms().length > 0;
+    const hasClient = clientListEl.querySelector('input[name="client"]:checked:not(:disabled)');
+    launchBtn.disabled = !hasFile || !hasPlatform || !hasClient;
   }
 
   function loadClients() {
     setClientsLoading(true);
     fetch("/api/clients")
       .then(function (res) {
-        if (!res.ok) throw new Error(res.statusText);
-        return res.json();
+        return res.text().then(function (text) {
+          if (!res.ok) throw new Error(text || res.statusText);
+          try {
+            return JSON.parse(text);
+          } catch (_) {
+            throw new Error("Invalid response from server");
+          }
+        });
       })
       .then(function (data) {
-        renderClients(data.clients || []);
+        allClients = data.clients || [];
+        renderClients(allClients);
         updateLaunchButton();
       })
       .catch(function (err) {
@@ -102,10 +177,24 @@
   });
 
   clientListEl.addEventListener("change", updateLaunchButton);
+  if (platformMetaEl) {
+    platformMetaEl.addEventListener("change", function () {
+      renderClients(allClients);
+      updateLaunchButton();
+    });
+  }
+  if (platformTikTokEl) {
+    platformTikTokEl.addEventListener("change", function () {
+      renderClients(allClients);
+      updateLaunchButton();
+    });
+  }
 
   launchBtn.addEventListener("click", function () {
     if (!selectedFile) return;
-    const checked = clientListEl.querySelectorAll('input[name="client"]:checked');
+    const selectedPlatforms = getSelectedPlatforms();
+    if (!selectedPlatforms.length) return;
+    const checked = clientListEl.querySelectorAll('input[name="client"]:checked:not(:disabled)');
     if (!checked.length) return;
 
     const clientIds = Array.from(checked).map(function (c) { return c.value; });
@@ -114,18 +203,37 @@
     const form = new FormData();
     form.append("video", selectedFile);
     form.append("clientIds", JSON.stringify(clientIds));
+    form.append("platforms", JSON.stringify(selectedPlatforms));
     if (brief) form.append("brief", brief);
 
     launchBtn.disabled = true;
-    log("Barth: Starting launch…");
+    log("Barth: Starting " + selectedPlatforms.join(" + ") + " launch…");
 
     fetch("/api/launch", {
       method: "POST",
       body: form
     })
       .then(function (res) {
-        if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || res.statusText); });
-        return res.json();
+        return res.text().then(function (text) {
+          if (!res.ok) {
+            var msg = res.status === 413
+              ? "Video too large for server (try a smaller file or run Barth locally)."
+              : (res.statusText || "Request failed");
+            try {
+              var d = JSON.parse(text);
+              if (d && typeof d.error === "string") msg = d.error;
+            } catch (_) {
+              if (text && text.length < 200) msg = text.trim() || msg;
+            }
+            throw new Error(msg);
+          }
+          try {
+            return JSON.parse(text);
+          } catch (_) {
+            var snippet = text.length > 120 ? text.slice(0, 120) + "…" : text;
+            throw new Error("Server returned non-JSON (request may be too large or gateway error): " + snippet);
+          }
+        });
       })
       .then(function (data) {
         var runId = data.runId;
@@ -149,7 +257,11 @@
         };
       })
       .catch(function (err) {
-        log("Barth: Launch failed — " + err.message, true);
+        var msg = err && err.message ? err.message : String(err);
+        if (/Unexpected token|is not valid JSON/i.test(msg)) {
+          msg = "Server returned a non-JSON response (request may be too large or a gateway error).";
+        }
+        log("Barth: Launch failed — " + msg, true);
         launchBtn.disabled = false;
       });
   });

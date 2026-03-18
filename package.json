@@ -8,7 +8,9 @@
     "build:core": "npm run build -w core",
     "meta": "npm run start -w agents-meta",
     "tiktok": "npm run start -w agents-tiktok",
-    "barth": "npm run start -w barth"
+    "barth": "npm run start -w barth",
+    "deploy": "npx vercel --prod --yes",
+    "deploy:render": "echo See docs/DEPLOY-RENDER.md — use Render Blueprint (render.yaml)"
   },
   "workspaces": [
     "core",

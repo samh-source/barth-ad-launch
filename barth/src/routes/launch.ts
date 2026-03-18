@@ -3,14 +3,26 @@
  * GET /api/launch/stream?runId= — SSE stream of status messages for the run.
  */
 
-import multer from "multer";
+import { readFile, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { tmpdir } from "node:os";
+import { extname, join } from "node:path";
 import type { Request, Response } from "express";
+import multer from "multer";
+import { loadAllClients } from "core";
 import { createRun, getRun, appendMessage, finishRun } from "../launchStore.js";
 import { runBarthMetaLaunch } from "../barth/meta.js";
+import { runBarthTikTokLaunch } from "../barth/tiktok.js";
+import { preflightSelectedClients, type LaunchPlatform } from "../launchReadiness.js";
 
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: tmpdir(),
+    filename(_req, file, cb) {
+      const extension = extname(file.originalname || "").trim() || ".mp4";
+      cb(null, `barth-${Date.now()}-${randomUUID()}${extension}`);
+    },
+  }),
   limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB
   fileFilter(_req, file, cb) {
     if (!file.mimetype.startsWith("video/")) {
@@ -21,54 +33,109 @@ const upload = multer({
   },
 });
 
+function parseStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean);
+  }
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 export function launchRoutes(projectRoot: string) {
   const postLaunch = async (req: Request, res: Response) => {
-    if (!req.file?.buffer) {
+    if (!req.file?.path) {
       res.status(400).json({ error: "Missing video file" });
       return;
     }
-    const clientIdsRaw = req.body?.clientIds;
-    const clientIds = Array.isArray(clientIdsRaw)
-      ? clientIdsRaw
-      : typeof clientIdsRaw === "string"
-        ? (() => {
-            try {
-              const parsed = JSON.parse(clientIdsRaw) as unknown;
-              return Array.isArray(parsed) ? (parsed as string[]) : [];
-            } catch {
-              return [];
-            }
-          })()
-        : [];
+    const uploadedFilePath = req.file.path;
+    const clientIds = parseStringArray(req.body?.clientIds);
     const brief = typeof req.body?.brief === "string" ? req.body.brief.trim() : undefined;
+    const platforms = parseStringArray(req.body?.platforms).filter(
+      (platform): platform is LaunchPlatform => platform === "meta" || platform === "tiktok"
+    );
 
     if (clientIds.length === 0) {
+      await rm(uploadedFilePath, { force: true }).catch(() => {});
       res.status(400).json({ error: "Select at least one client" });
+      return;
+    }
+    if (platforms.length === 0) {
+      await rm(uploadedFilePath, { force: true }).catch(() => {});
+      res.status(400).json({ error: "Select at least one platform" });
+      return;
+    }
+    if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+      await rm(uploadedFilePath, { force: true }).catch(() => {});
+      res.status(500).json({ error: "Server missing ANTHROPIC_API_KEY." });
+      return;
+    }
+
+    const clientsDir = join(projectRoot, "config", "clients");
+    const { clients, errors } = await loadAllClients({ clientsDir });
+    const preflight = preflightSelectedClients(clients, clientIds, platforms);
+    if (preflight.errors.length > 0) {
+      await rm(uploadedFilePath, { force: true }).catch(() => {});
+      res.status(400).json({
+        error: `Launch blocked: ${preflight.errors.join(" | ")}`,
+      });
       return;
     }
 
     const runId = randomUUID();
     createRun(runId);
     const file = req.file;
+    const filePath = file.path;
 
     res.status(202).json({ runId });
 
     const onStatus = (message: string) => appendMessage(runId, message);
 
     (async () => {
+      let videoBuffer: Buffer | undefined;
       try {
-        await runBarthMetaLaunch({
-          projectRoot,
-          videoBuffer: file.buffer,
-          videoFileName: file.originalname || "video.mp4",
-          clientIds,
-          brief,
-          onStatus,
-        });
+        if (errors.length > 0) {
+          onStatus(`Barth: Config warnings: ${errors.map((err) => err.file).join(", ")}`);
+        }
+        onStatus(`Barth: Launch validated for ${preflight.selectedClients.length} client(s).`);
+        videoBuffer = await readFile(filePath);
+
+        if (platforms.includes("meta")) {
+          onStatus("Barth: Launching to Meta…");
+          await runBarthMetaLaunch({
+            projectRoot,
+            videoBuffer,
+            videoFileName: file.originalname || "video.mp4",
+            clientIds,
+            brief,
+            onStatus,
+          });
+        }
+        if (platforms.includes("tiktok")) {
+          onStatus("Barth: Launching to TikTok…");
+          await runBarthTikTokLaunch({
+            projectRoot,
+            videoBuffer,
+            videoFileName: file.originalname || "video.mp4",
+            clientIds,
+            brief,
+            onStatus,
+          });
+        }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        let msg = err instanceof Error ? err.message : String(err);
+        if (/Unexpected token.*is not valid JSON/i.test(msg)) {
+          msg = "Server or API returned a non-JSON response (request may be too large or a gateway error).";
+        }
         appendMessage(runId, `Barth: Launch failed — ${msg}`);
       } finally {
+        await rm(filePath, { force: true }).catch(() => {});
         finishRun(runId);
       }
     })();

@@ -4,9 +4,28 @@
   "metaAccountId": "act_1250594776936088",
   "metaPageId": "602062159648107",
   "metaAccessToken": "EAAM7xdqMm1kBQyrqy9j9NqYOh00W5ZByZAjjehempeeRpNZB61FyL1Of32rKE8inKhKm0sdzX6xEZCAwW4brmBwnTqqFiXkcVTyzuDBASmjg7PUCq9fiCgQztksVDMZBsjZCYBZCU5AEDMPmGI4pYv2WfhBhMEZBlPvvc8zPquQnEEbMpZBxVPpXUuto0BOv3TAZDZD",
+  "metaTargeting": {
+    "geo_locations": {
+      "countries": [
+        "US"
+      ],
+      "custom_locations": [
+        {
+          "latitude": 43.1087,
+          "longitude": -77.4875,
+          "radius": 10,
+          "distance_unit": "mile"
+        }
+      ]
+    }
+  },
   "thresholds": {
     "minROAS": 2,
     "maxCPA": 50,
     "minSpendToEvaluate": 100
-  }
+  },
+  "tiktokAccessToken": "a5f39cf4f48f21d46a8cc221483cafa5436f89ab",
+  "tiktokAdvertiserId": "7594953457661067265",
+  "tiktokLaunchMode": "awareness",
+  "tiktokLocationIds": ["538"]
 }

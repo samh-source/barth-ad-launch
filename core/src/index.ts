@@ -16,6 +16,7 @@ export {
   type ClientWithMeta,
   type ClientWithTikTok,
   type ClientThresholds,
+  type TikTokLaunchMode,
   clientConfigSchema,
 } from "./config/index.js";
 

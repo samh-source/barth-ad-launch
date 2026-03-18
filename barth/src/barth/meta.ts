@@ -2,8 +2,9 @@
  * Barth Meta launch: upload video, generate caption with Claude, create campaign with $50/day budget, stream status.
  */
 
-import { loadClientsWithMeta, createClaudeClient } from "core";
+import { loadAllClients, createClaudeClient, type ClientConfig } from "core";
 import { join } from "node:path";
+import { getMetaLaunchIssue } from "../launchReadiness.js";
 
 const GRAPH_API_VERSION = "v21.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
@@ -16,6 +17,42 @@ export interface BarthMetaLaunchOptions {
   clientIds: string[];
   brief?: string;
   onStatus: (message: string) => void;
+}
+
+function validateMetaClient(client: ClientConfig): { ready?: ClientConfig & { metaAccountId: string; metaAccessToken: string; metaPageId: string }; error?: string } {
+  const issue = getMetaLaunchIssue(client);
+  if (issue) return { error: issue };
+  return {
+    ready: client as ClientConfig & { metaAccountId: string; metaAccessToken: string; metaPageId: string },
+  };
+}
+
+function getMetaAppAccessToken(): string | null {
+  const appId = process.env.META_APP_ID?.trim();
+  const appSecret = process.env.META_APP_SECRET?.trim();
+  if (!appId || !appSecret) return null;
+  return `${appId}|${appSecret}`;
+}
+
+async function assertMetaTokenValid(metaAccessToken: string): Promise<void> {
+  const appAccessToken = getMetaAppAccessToken();
+  if (!appAccessToken) return;
+
+  const debugUrl = new URL(`${GRAPH_BASE}/debug_token`);
+  debugUrl.searchParams.set("input_token", metaAccessToken);
+  debugUrl.searchParams.set("access_token", appAccessToken);
+
+  const res = await fetch(debugUrl.toString());
+  const data = (await parseJsonRes(res)) as {
+    data?: { is_valid?: boolean };
+    error?: { message?: string };
+  };
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message ?? `Meta token debug HTTP ${res.status}`);
+  }
+  if (!data.data?.is_valid) {
+    throw new Error("Meta token invalid or revoked.");
+  }
 }
 
 function normAccountId(id: string): string {
@@ -42,12 +79,12 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
   const { projectRoot, videoBuffer, videoFileName, clientIds, brief, onStatus } = options;
   const clientsDir = join(projectRoot, "config", "clients");
 
-  const { clients, errors } = await loadClientsWithMeta({ clientsDir });
+  const { clients, errors } = await loadAllClients({ clientsDir });
   if (errors.length > 0) {
     onStatus(`Barth: Config warnings: ${errors.map((e) => e.file).join(", ")}`);
   }
 
-  const metaClients = clients.filter((c) => clientIds.includes(c.metaAccountId));
+  const metaClients = clients.filter((c) => clientIds.includes(c.clientName));
   if (metaClients.length === 0) {
     onStatus("Barth: No valid Meta clients selected.");
     return;
@@ -59,15 +96,16 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
   const defaultTargeting = { geo_locations: { countries: ["US"] as string[] } };
 
   for (const client of metaClients) {
-    const { clientName, metaAccountId, metaAccessToken, metaPageId } = client;
-    const metaWebsiteUrl = (client as { metaWebsiteUrl?: string }).metaWebsiteUrl?.trim();
-    const metaTargeting = (client as { metaTargeting?: { geo_locations?: { countries?: string[]; custom_locations?: Array<{ latitude: number; longitude: number; radius?: number; distance_unit?: string }> } } }).metaTargeting;
-    const accountId = normAccountId(metaAccountId);
-
-    if (!metaPageId?.trim()) {
-      onStatus(`Barth: Skipping ${clientName} — metaPageId required for video ads. Add metaPageId to config.`);
+    const validation = validateMetaClient(client);
+    if (!validation.ready) {
+      onStatus(`Barth: Skipping ${client.clientName} — ${validation.error}`);
       continue;
     }
+
+    const { clientName, metaAccountId, metaAccessToken, metaPageId } = validation.ready;
+    const metaWebsiteUrl = validation.ready.metaWebsiteUrl?.trim();
+    const metaTargeting = validation.ready.metaTargeting;
+    const accountId = normAccountId(metaAccountId);
 
     const targeting =
       metaTargeting?.geo_locations &&
@@ -97,6 +135,7 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
 
     try {
       onStatus(`Barth: Starting launch for ${clientName}…`);
+      await assertMetaTokenValid(metaAccessToken);
 
       // 1) Upload video to ad account
       const form = new FormData();

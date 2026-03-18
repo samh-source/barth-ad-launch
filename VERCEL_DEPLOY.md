@@ -6,7 +6,25 @@ Deploy Barth so you get a **public URL** (e.g. for Meta’s Privacy policy URL).
 
 ---
 
-## 1. Push your repo to GitHub
+## Option A: Deploy from your machine (CLI)
+
+1. **Log in once** (opens browser): in the project folder run  
+   `npx vercel login`  
+   and sign in with GitHub when the browser opens.
+
+2. **Deploy:** run  
+   `npm run deploy`  
+   (or `npx vercel --prod --yes`). This builds and deploys; you’ll get a URL like `https://barth-ad-launch.vercel.app`.
+
+3. **Env vars:** In [vercel.com](https://vercel.com) → your project → **Settings** → **Environment Variables**, add `ANTHROPIC_API_KEY` (and any other vars from `.env`), then **Redeploy**.
+
+4. **Meta:** Use `https://<your-project>.vercel.app/privacy.html` as the Privacy policy URL in your Meta app, then click Publish.
+
+---
+
+## Option B: Deploy from the Vercel website
+
+### 1. Push your repo to GitHub
 
 If it isn’t already:
 
@@ -15,7 +33,7 @@ If it isn’t already:
 
 ---
 
-## 2. Import the project in Vercel
+### 2. Import the project in Vercel
 
 1. Go to **[vercel.com](https://vercel.com)** and sign in (GitHub is fine).
 2. Click **Add New…** → **Project**.
@@ -28,7 +46,7 @@ If it isn’t already:
 
 ---
 
-## 3. Set environment variables (for Launch to work)
+### 3. Set environment variables (for Launch to work)
 
 After the first deploy:
 
@@ -43,7 +61,7 @@ Your **client config** (e.g. `config/clients/sessco.json`) is in the repo, so to
 
 ---
 
-## 4. Get your public URL
+### 4. Get your public URL
 
 After a successful deploy:
 
@@ -54,7 +72,7 @@ Use that **privacy URL** in Meta: **App dashboard → Publish (or App settings) 
 
 ---
 
-## 5. Limits to be aware of
+### 5. Limits to be aware of
 
 - **Timeout:** The Launch flow (video upload, Claude, Meta campaign/ad set/creative/ad) can take 30–60+ seconds. Vercel’s serverless function has a **max duration** (e.g. 60s on Pro). If you hit timeouts, run Barth locally for Launch and use Vercel mainly for the public site and privacy URL, or upgrade Vercel for longer limits.
 - **Request size:** Large video uploads may hit Vercel’s body size limit (e.g. 4.5 MB on Hobby). For big videos, run Barth locally or host it on a platform without that limit (e.g. Railway, Render).

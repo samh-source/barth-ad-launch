@@ -1,5 +1,6 @@
 {
   "buildCommand": "npm run build:core && npm run build -w barth",
+  "outputDirectory": ".",
   "rewrites": [{ "source": "/(.*)", "destination": "/api/barth" }],
   "functions": {
     "api/barth.mjs": {
