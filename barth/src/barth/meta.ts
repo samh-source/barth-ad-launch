@@ -22,6 +22,22 @@ function normAccountId(id: string): string {
   return id.replace(/^act_/, "");
 }
 
+async function parseJsonRes(res: Response): Promise<unknown> {
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (e) {
+    const errMsg = e instanceof Error ? e.message : String(e);
+    throw new Error(`Failed to read response body (${res.status}): ${errMsg}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    const snippet = text.length > 120 ? text.slice(0, 120) + "…" : text;
+    throw new Error(`Server returned non-JSON (${res.status}): ${snippet}`);
+  }
+}
+
 export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promise<void> {
   const { projectRoot, videoBuffer, videoFileName, clientIds, brief, onStatus } = options;
   const clientsDir = join(projectRoot, "config", "clients");
@@ -40,13 +56,43 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
   const claude = createClaudeClient();
   const dateStr = new Date().toISOString().slice(0, 10);
 
+  const defaultTargeting = { geo_locations: { countries: ["US"] as string[] } };
+
   for (const client of metaClients) {
     const { clientName, metaAccountId, metaAccessToken, metaPageId } = client;
+    const metaWebsiteUrl = (client as { metaWebsiteUrl?: string }).metaWebsiteUrl?.trim();
+    const metaTargeting = (client as { metaTargeting?: { geo_locations?: { countries?: string[]; custom_locations?: Array<{ latitude: number; longitude: number; radius?: number; distance_unit?: string }> } } }).metaTargeting;
     const accountId = normAccountId(metaAccountId);
 
     if (!metaPageId?.trim()) {
       onStatus(`Barth: Skipping ${clientName} — metaPageId required for video ads. Add metaPageId to config.`);
       continue;
+    }
+
+    const targeting =
+      metaTargeting?.geo_locations &&
+      (metaTargeting.geo_locations.countries?.length || metaTargeting.geo_locations.custom_locations?.length)
+        ? {
+            geo_locations: {
+              ...(metaTargeting.geo_locations.countries?.length
+                ? { countries: metaTargeting.geo_locations.countries }
+                : {}),
+              ...(metaTargeting.geo_locations.custom_locations?.length
+                ? {
+                    custom_locations: metaTargeting.geo_locations.custom_locations.map((loc) => ({
+                      latitude: loc.latitude,
+                      longitude: loc.longitude,
+                      radius: loc.radius ?? 10,
+                      distance_unit: loc.distance_unit ?? "mile",
+                    })),
+                  }
+                : {}),
+            },
+          }
+        : defaultTargeting;
+    const gl = targeting.geo_locations as { countries?: string[]; custom_locations?: unknown[] };
+    if (gl.custom_locations?.length && !gl.countries?.length) {
+      gl.countries = ["US"];
     }
 
     try {
@@ -60,7 +106,7 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
 
       const uploadUrl = `${GRAPH_BASE}/act_${accountId}/advideos`;
       const uploadRes = await fetch(uploadUrl, { method: "POST", body: form });
-      const uploadData = (await uploadRes.json()) as { id?: string; error?: { message: string } };
+      const uploadData = (await parseJsonRes(uploadRes)) as { id?: string; error?: { message: string } };
       if (!uploadRes.ok || uploadData.error) {
         throw new Error(uploadData.error?.message ?? `Upload HTTP ${uploadRes.status}`);
       }
@@ -76,7 +122,7 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
       thumbForm.append("bytes", thumbPngB64);
       thumbForm.append("name", "thumb.png");
       const thumbRes = await fetch(`${GRAPH_BASE}/act_${accountId}/adimages`, { method: "POST", body: thumbForm });
-      const thumbData = (await thumbRes.json()) as { images?: Record<string, { hash?: string }>; error?: { message: string } };
+      const thumbData = (await parseJsonRes(thumbRes)) as { images?: Record<string, { hash?: string }>; error?: { message: string } };
       if (!thumbRes.ok || thumbData.error) {
         throw new Error(thumbData.error?.message ?? `Thumbnail upload HTTP ${thumbRes.status}`);
       }
@@ -109,7 +155,7 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
           special_ad_categories: "NONE",
         }).toString(),
       });
-      const campaignData = (await campaignRes.json()) as { id?: string; error?: { message: string; error_user_msg?: string } };
+      const campaignData = (await parseJsonRes(campaignRes)) as { id?: string; error?: { message: string; error_user_msg?: string } };
       if (!campaignRes.ok || campaignData.error) {
         const errMsg = campaignData.error?.error_user_msg ?? campaignData.error?.message ?? `Campaign HTTP ${campaignRes.status}`;
         throw new Error(errMsg);
@@ -118,14 +164,16 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
       if (!campaignId) throw new Error("No campaign id returned");
       onStatus(`Barth: Created campaign for ${clientName} (${campaignId}).`);
 
-      // 4) Create ad set (no daily_budget — uses campaign's Advantage campaign budget, so is_adset_budget_sharing_enabled not required)
+      // 4) Create ad set (OUTCOME_ENGAGEMENT requires destination_type + matching optimization_goal; ON_POST allows POST_ENGAGEMENT)
       const adSetName = `Barth – ${clientName} – ad set – ${dateStr}`;
       const adSetBody = new URLSearchParams({
         name: adSetName,
         campaign_id: campaignId,
         billing_event: "IMPRESSIONS",
         optimization_goal: "POST_ENGAGEMENT",
-        targeting: JSON.stringify({ geo_locations: { countries: ["US"] } }),
+        destination_type: "ON_POST",
+        promoted_object: JSON.stringify({ page_id: metaPageId }),
+        targeting: JSON.stringify(targeting),
         status: "ACTIVE",
       });
       const adSetRes = await fetch(`${GRAPH_BASE}/act_${accountId}/adsets?access_token=${encodeURIComponent(metaAccessToken)}`, {
@@ -133,7 +181,7 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: adSetBody.toString(),
       });
-      const adSetData = (await adSetRes.json()) as { id?: string; error?: { message: string; error_user_msg?: string } };
+      const adSetData = (await parseJsonRes(adSetRes)) as { id?: string; error?: { message: string; error_user_msg?: string } };
       if (!adSetRes.ok || adSetData.error) {
         const errMsg = adSetData.error?.error_user_msg ?? adSetData.error?.message ?? `Ad set HTTP ${adSetRes.status}`;
         throw new Error(errMsg);
@@ -142,8 +190,27 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
       if (!adSetId) throw new Error("No ad set id returned");
       onStatus(`Barth: Created ad set for ${clientName} ($${DAILY_BUDGET_CENTS / 100}/day).`);
 
-      // 5) Create video ad creative (page_id + video_id + message)
+      // 5) Create video ad creative. Only attach an external CTA when a real website URL is configured.
       const creativeName = `Barth – ${clientName} – creative – ${dateStr}`;
+      const videoData: {
+        video_id: string;
+        message: string;
+        image_hash: string;
+        call_to_action?: {
+          type: string;
+          value: { link: string };
+        };
+      } = {
+        video_id: videoId,
+        message,
+        image_hash: imageHash,
+      };
+      if (metaWebsiteUrl) {
+        videoData.call_to_action = {
+          type: "LEARN_MORE",
+          value: { link: metaWebsiteUrl },
+        };
+      }
       const creativeRes = await fetch(`${GRAPH_BASE}/act_${accountId}/adcreatives?access_token=${encodeURIComponent(metaAccessToken)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,15 +218,11 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
           name: creativeName,
           object_story_spec: {
             page_id: metaPageId,
-            video_data: {
-              video_id: videoId,
-              message,
-              image_hash: imageHash,
-            },
+            video_data: videoData,
           },
         }),
       });
-      const creativeData = (await creativeRes.json()) as { id?: string; error?: { message: string; error_user_msg?: string } };
+      const creativeData = (await parseJsonRes(creativeRes)) as { id?: string; error?: { message: string; error_user_msg?: string } };
       if (!creativeRes.ok || creativeData.error) {
         const errMsg = creativeData.error?.error_user_msg ?? creativeData.error?.message ?? `Creative HTTP ${creativeRes.status}`;
         throw new Error(errMsg);
@@ -180,14 +243,17 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
           status: "ACTIVE",
         }),
       });
-      const adData = (await adRes.json()) as { id?: string; error?: { message: string; error_user_msg?: string } };
+      const adData = (await parseJsonRes(adRes)) as { id?: string; error?: { message: string; error_user_msg?: string } };
       if (!adRes.ok || adData.error) {
         const errMsg = adData.error?.error_user_msg ?? adData.error?.message ?? `Ad HTTP ${adRes.status}`;
         throw new Error(errMsg);
       }
       onStatus(`Barth: Launch complete for ${clientName}.`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      let msg = err instanceof Error ? err.message : String(err);
+      if (/Unexpected token|is not valid JSON/i.test(msg)) {
+        msg = "API returned non-JSON (request may be too large or gateway error).";
+      }
       onStatus(`Barth: Error for ${clientName} — ${msg}`);
     }
   }
