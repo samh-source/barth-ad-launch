@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: barth-ad-launch
+    runtime: node
+    buildCommand: npm ci && npm run build:core && npm run build -w barth
+    startCommand: npm run start -w barth
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: ANTHROPIC_API_KEY
+        sync: false
