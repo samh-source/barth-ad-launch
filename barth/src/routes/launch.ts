@@ -106,12 +106,13 @@ export function launchRoutes(projectRoot: string) {
         onStatus(`Barth: Launch validated for ${preflight.selectedClients.length} client(s).`);
         videoBuffer = await readFile(filePath);
 
+        const videoFileName = file.filename || file.originalname || "video.mp4";
         if (platforms.includes("meta")) {
           onStatus("Barth: Launching to Meta…");
           await runBarthMetaLaunch({
             projectRoot,
             videoBuffer,
-            videoFileName: file.originalname || "video.mp4",
+            videoFileName,
             clientIds,
             brief,
             onStatus,
@@ -122,7 +123,7 @@ export function launchRoutes(projectRoot: string) {
           await runBarthTikTokLaunch({
             projectRoot,
             videoBuffer,
-            videoFileName: file.originalname || "video.mp4",
+            videoFileName,
             clientIds,
             brief,
             onStatus,

@@ -231,7 +231,9 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
       continue;
     }
 
-    const { clientName, metaAccountId, metaAccessToken, metaPageId } = validation.ready;
+    const { clientName, metaAccountId, metaPageId } = validation.ready;
+    const metaAccessToken =
+      process.env.META_ACCESS_TOKEN?.trim() || validation.ready.metaAccessToken;
     const metaWebsiteUrl = validation.ready.metaWebsiteUrl?.trim();
     const metaTargeting = validation.ready.metaTargeting;
     const accountId = normAccountId(metaAccountId);
@@ -264,7 +266,9 @@ export async function runBarthMetaLaunch(options: BarthMetaLaunchOptions): Promi
 
     try {
       onStatus(`Barth: Starting launch for ${clientName}…`);
-      await assertMetaTokenValid(metaAccessToken);
+      if (!process.env.META_ACCESS_TOKEN?.trim()) {
+        await assertMetaTokenValid(metaAccessToken);
+      }
 
       // 1) Upload video to ad account
       const form = new FormData();

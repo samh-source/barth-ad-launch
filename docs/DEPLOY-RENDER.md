@@ -21,10 +21,11 @@ Render deploys from Git.
 3. Render reads **`render.yaml`** at the repo root.
 4. When prompted, set these environment variables:
    - **`ANTHROPIC_API_KEY`** — required for caption generation.
-   - **`TIKTOK_CLIENT_KEY`** — required for TikTok token refresh.
-   - **`TIKTOK_CLIENT_SECRET`** — required for TikTok token refresh.
-   - **`META_APP_ID`** — recommended so Barth can debug Meta tokens before launch.
-   - **`META_APP_SECRET`** — recommended so Barth can debug Meta tokens before launch.
+   - **`META_ACCESS_TOKEN`** — **required for Meta launches.** Use your long-lived Meta token here. This overrides config; update here instead of pushing config changes.
+   - **`META_APP_ID`** — for token validation (optional; if unset, validation is skipped).
+   - **`META_APP_SECRET`** — for token validation (optional).
+   - **`TIKTOK_CLIENT_KEY`** — for TikTok token refresh.
+   - **`TIKTOK_CLIENT_SECRET`** — for TikTok token refresh.
 
 ## 3. After deploy
 
@@ -36,6 +37,7 @@ Render deploys from Git.
 ## 4. Production checklist
 
 - `ANTHROPIC_API_KEY` is set in Render.
+- `META_ACCESS_TOKEN` is set in Render (your Meta long-lived token — this overrides config and avoids deploy for token updates).
 - `TIKTOK_CLIENT_KEY` and `TIKTOK_CLIENT_SECRET` are set in Render.
 - `META_APP_ID` and `META_APP_SECRET` are set in Render.
 - `config/clients/*.json` in the deployed branch contains the real per-client Meta/TikTok credentials.
@@ -67,6 +69,6 @@ Render deploys from Git.
 
 - **Build fails:** ensure root **`package-lock.json`** is committed; run `npm ci` locally from repo root to verify.
 - **500 on launch:** check Render **Logs**; confirm `ANTHROPIC_API_KEY` is set and client JSON credentials are current.
-- **"Meta token invalid" after pushing new tokens:** Render caches builds. Go to **Dashboard → your service → Manual Deploy** and deploy the latest commit. Or **Settings → Build & Deploy → Clear build cache** then redeploy.
+- **"Meta token invalid":** Set **`META_ACCESS_TOKEN`** in Render dashboard to your Meta long-lived token. This overrides config and does not require a deploy. Get a token at [Graph API Explorer](https://developers.facebook.com/tools/explorer) → Generate → Extend to long-lived.
 - **TikTok launch blocked in UI:** confirm the client JSON includes `tiktokLocationIds` and, for traffic clients, `tiktokWebsiteUrl`.
 - **Meta launch blocked early:** confirm `metaPageId` is present and that `META_APP_ID` / `META_APP_SECRET` are set if you want pre-launch token validation.
