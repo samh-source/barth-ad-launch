@@ -3,7 +3,7 @@
   "notificationEmail": "samh@betteraccountingsolutions.com",
   "metaAccountId": "act_1250594776936088",
   "metaPageId": "602062159648107",
-  "metaAccessToken": "EAAM7xdqMm1kBQyrqy9j9NqYOh00W5ZByZAjjehempeeRpNZB61FyL1Of32rKE8inKhKm0sdzX6xEZCAwW4brmBwnTqqFiXkcVTyzuDBASmjg7PUCq9fiCgQztksVDMZBsjZCYBZCU5AEDMPmGI4pYv2WfhBhMEZBlPvvc8zPquQnEEbMpZBxVPpXUuto0BOv3TAZDZD",
+  "metaAccessToken": "EAAM7xdqMm1kBQynKZByBrlPjDTA8eUYkEZAZBBkSgBMJCiraZAliLFDbqS0F3sWavNbtNi0hPSJVu1Gh8ntxXqqEZCsqzpQoWHZA6VrpTgaZBAb2QaBEN6dS05nXJA6cB1bFuR2luz8BWOhGbj4j3apV6pUO4VIzoS5gF5IHkDyW5lhN6HvbBrK7KQAujTgZCTKbuGuS502ZC5zSQ4HZCgQO4epnITjpQrda5ftqTb2ZCkPLFylt4aC3lY110JXipzhRq19yudIOKy1cuUnJpIOIitTZAQZDZD",
   "metaTargeting": {
     "geo_locations": {
       "countries": [
@@ -27,5 +27,7 @@
   "tiktokAccessToken": "a5f39cf4f48f21d46a8cc221483cafa5436f89ab",
   "tiktokAdvertiserId": "7594953457661067265",
   "tiktokLaunchMode": "awareness",
-  "tiktokLocationIds": ["538"]
+  "tiktokLocationIds": [
+    "538"
+  ]
 }

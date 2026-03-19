@@ -64,7 +64,10 @@ export function createClaudeClient(options: ClaudeClientOptions = {}) {
     input: CopyGenerationInput,
     opts: ClaudeGenerateOptions = {}
   ): Promise<string> {
-    const system = `You are an expert ad copywriter for paid social (Meta and TikTok). Output only the requested copy, no preamble or explanation.`;
+    const wantsJson = /\bjson\b/i.test(input.formatInstructions ?? "");
+    const system = wantsJson
+      ? `You are an expert ad copywriter for paid social (Meta and TikTok). Follow the user's format exactly. Output ONLY what they ask for — no markdown, no **labels**, no code fences, no preamble or explanation.`
+      : `You are an expert ad copywriter for paid social (Meta and TikTok). Output only the requested copy, no preamble or explanation.`;
     const parts: string[] = [
       "Context:",
       input.context,
@@ -74,6 +77,9 @@ export function createClaudeClient(options: ClaudeClientOptions = {}) {
     }
     if (input.tone) {
       parts.push("Tone/constraints:", input.tone);
+    }
+    if (input.formatInstructions?.trim()) {
+      parts.push("", "Output format:", input.formatInstructions.trim());
     }
     parts.push("Generate the ad copy below (only the copy):");
     const userMessage = parts.join("\n");

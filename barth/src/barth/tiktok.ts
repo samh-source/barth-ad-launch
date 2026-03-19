@@ -2,12 +2,16 @@
  * Barth TikTok launch: upload video, generate copy, create campaign/ad group/ad, stream status.
  */
 
+import { createHash } from "node:crypto";
 import { createClaudeClient, loadAllClients, type ClientConfig, type TikTokLaunchMode } from "core";
 import { join } from "node:path";
+import { formatTikTokAdText, parseStructuredAdCopy } from "./adCopyParse.js";
 import { getTikTokLaunchIssue } from "../launchReadiness.js";
 
 const TIKTOK_BASE = "https://business-api.tiktok.com/open_api/v1.3";
 const DAILY_BUDGET = 50;
+/** TikTok in-feed caption length limit used by Barth (conservative for API). */
+const TIKTOK_AD_TEXT_MAX = 100;
 
 export interface BarthTikTokLaunchOptions {
   projectRoot: string;
@@ -208,6 +212,10 @@ async function uploadVideo(
   form.append("upload_type", "UPLOAD_BY_FILE");
   form.append("file_name", videoFileName);
   form.append("video_file", new Blob([videoBuffer], { type: "video/mp4" }), videoFileName);
+  form.append(
+    "video_signature",
+    createHash("md5").update(videoBuffer).digest("hex")
+  );
 
   const payload = await postForm(accessToken, "/file/video/ad/upload/", form);
   const videoId = extractId(payload, ["video_id", "id"]);
@@ -336,8 +344,14 @@ export async function runBarthTikTokLaunch(options: BarthTikTokLaunchOptions): P
       const caption = await claude.generateCopy({
         context,
         tone: "short, CTA-focused",
+        formatInstructions: `Return a single JSON object only (no markdown, no **Headline:** labels, no code fences). Keys: "headline" (short hook, max ~35 characters) and "primary_text" (TikTok in-feed caption body, 1–2 short sentences). Example: {"headline":"BOGO 50% off this week","primary_text":"Don't wait — buy one, get one 50% off."}`,
       });
-      const message = (caption || "").trim().slice(0, 100) || `${client.clientName} — learn more`;
+      const parsed = parseStructuredAdCopy(caption || "", {
+        defaultPrimary: `${validation.ready.clientName} — learn more`,
+      });
+      const message =
+        formatTikTokAdText(parsed.headline, parsed.primaryText, TIKTOK_AD_TEXT_MAX) ||
+        `${validation.ready.clientName} — learn more`;
       onStatus(`Barth: Generated TikTok caption for ${client.clientName}.`);
 
       const campaignName = `Barth - ${client.clientName} - TikTok - ${dateStr}`;

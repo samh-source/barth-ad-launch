@@ -95,6 +95,10 @@ META_APP_SECRET=your_app_secret_here
 
 ---
 
+**Meta token expired?** Long-lived user tokens last ~60 days. If Barth reports "Meta token invalid or revoked", regenerate a token (Step 3 above) and update `metaAccessToken` in the client JSON. For production, use a **System User** token—it doesn't expire.
+
+---
+
 ## Part 2: TikTok Credentials
 
 ### What you need

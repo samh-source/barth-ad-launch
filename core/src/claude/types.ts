@@ -21,6 +21,11 @@ export interface CopyGenerationInput {
   currentCopy?: string;
   /** Tone or constraints (e.g. "short", "CTA-focused") */
   tone?: string;
+  /**
+   * Extra output rules (e.g. "Return only JSON: {\"headline\":\"...\",\"primary_text\":\"...\"}").
+   * When this mentions JSON, the model is instructed to avoid markdown fences and labels.
+   */
+  formatInstructions?: string;
 }
 
 export interface DecisionInput {
