@@ -125,8 +125,12 @@ function readFirstString(value: unknown): string | undefined {
   return undefined;
 }
 
+/** TikTok returns data as object or sometimes as array (e.g. video upload: data: [{ id }]). */
 function getDataObject(payload: TikTokPayload): Record<string, unknown> {
-  return isObject(payload.data) ? payload.data : {};
+  const d = payload.data;
+  if (isObject(d)) return d;
+  if (Array.isArray(d) && d.length > 0 && isObject(d[0])) return d[0] as Record<string, unknown>;
+  return {};
 }
 
 function extractId(payload: TikTokPayload, preferredKeys: string[]): string | undefined {

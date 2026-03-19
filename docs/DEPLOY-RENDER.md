@@ -67,5 +67,6 @@ Render deploys from Git.
 
 - **Build fails:** ensure root **`package-lock.json`** is committed; run `npm ci` locally from repo root to verify.
 - **500 on launch:** check Render **Logs**; confirm `ANTHROPIC_API_KEY` is set and client JSON credentials are current.
+- **"Meta token invalid" after pushing new tokens:** Render caches builds. Go to **Dashboard → your service → Manual Deploy** and deploy the latest commit. Or **Settings → Build & Deploy → Clear build cache** then redeploy.
 - **TikTok launch blocked in UI:** confirm the client JSON includes `tiktokLocationIds` and, for traffic clients, `tiktokWebsiteUrl`.
 - **Meta launch blocked early:** confirm `metaPageId` is present and that `META_APP_ID` / `META_APP_SECRET` are set if you want pre-launch token validation.

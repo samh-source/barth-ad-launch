@@ -3,7 +3,7 @@ services:
     name: barth-ad-launch
     runtime: node
     buildCommand: npm ci && npm run build:core && npm run build -w barth
-    startCommand: npm run start -w barth
+    startCommand: node barth/dist/index.js
     envVars:
       - key: NODE_VERSION
         value: "20"
